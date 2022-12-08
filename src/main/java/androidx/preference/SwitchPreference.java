@@ -20,6 +20,9 @@ import static androidx.annotation.RestrictTo.Scope.LIBRARY;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
@@ -28,6 +31,7 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 
 import androidx.annotation.RestrictTo;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.res.TypedArrayUtils;
 
 /**
@@ -211,18 +215,12 @@ public class SwitchPreference extends TwoStatePreference {
     }
 
     private void syncSwitchView(View view) {
-        if (view instanceof Switch) {
-            final Switch switchView = (Switch) view;
+        if (view instanceof CompoundButton) {
+            final CompoundButton switchView = (CompoundButton) view;
             switchView.setOnCheckedChangeListener(null);
         }
         if (view instanceof Checkable) {
             ((Checkable) view).setChecked(mChecked);
-        }
-        if (view instanceof Switch) {
-            final Switch switchView = (Switch) view;
-            switchView.setTextOn(mSwitchOn);
-            switchView.setTextOff(mSwitchOff);
-            switchView.setOnCheckedChangeListener(mListener);
         }
     }
 

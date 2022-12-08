@@ -228,6 +228,7 @@
         <!-- Whether the preference should automatically set its summary to the value saved for the
              preference, and update the summary when the value is changed. Defaults to false. -->
         <attr format="boolean" name="useSimpleSummaryProvider"/>
+        <attr format="boolean" name="autoSelectAll"/>
     </declare-styleable>
     <declare-styleable name="ListPreference">
         <!-- The human-readable array to present as a list. Each entry must have a corresponding
@@ -242,6 +243,7 @@
         <!-- Whether the preference should automatically set its summary to the value saved for the
              preference, and update the summary when the value is changed. Defaults to false. -->
         <attr name="useSimpleSummaryProvider"/>
+		<attr format="boolean" name="autoSummary"/>
     </declare-styleable>
     <declare-styleable name="MultiSelectListPreference">
         <!-- The human-readable array to present as a list. Each entry must have a corresponding
@@ -257,6 +259,8 @@
     <declare-styleable name="Preference">
         <!-- The optional icon for the preference -->
         <attr name="icon"/>
+        <attr name="android:tint"/>
+		<attr name="android:clickable"/>
         <attr name="android:icon"/>
         <!-- The key to store the Preference value. -->
         <attr format="string" name="key"/>
@@ -333,6 +337,20 @@
         <!-- Whether the summary of this preference can be copied to the clipboard by long pressing
              on the preference. By default, this is set to false. -->
         <attr format="boolean" name="enableCopying"/>
+
+		<!-- Wiki 显示的HELP信息，显示在对话框的标题栏。 -->
+		<attr format="string" name="wiki"/>
+
+		<!-- Wiki 显示在Summary中。 -->
+		<attr format="boolean" name="wikiSummary"/>
+
+		<!-- Summary显示在标题中。 -->
+		<attr format="boolean" name="inlineSummary"/>
+
+		<!-- 起始处添加一个复选框，主要用于切换是否覆盖全局设置。 -->
+		<attr format="boolean" name="hasCheck"/>
+		<!-- 起始处添加内部的分隔条，基于线性布局。 -->
+		<attr format="boolean" name="hasSep"/>
     </declare-styleable>
     <declare-styleable name="PreferenceFragment">
         <!-- The layout for the PreferenceFragment. This should rarely need to be changed. -->
@@ -371,6 +389,8 @@
              The group should have a key defined if an expandable preference is present to correctly
              persist state. -->
         <attr format="integer" name="initialExpandedChildrenCount"/>
+		<attr format="boolean" name="drawSideLine"/>
+		<attr format="boolean" name="cardGroupView"/>
     </declare-styleable>
     <declare-styleable name="PreferenceImageView">
         <attr format="dimension" name="maxWidth"/>

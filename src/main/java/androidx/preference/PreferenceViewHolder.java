@@ -29,8 +29,9 @@ import androidx.recyclerview.widget.RecyclerView;
  */
 public class PreferenceViewHolder extends RecyclerView.ViewHolder {
     private final SparseArray<View> mCachedViews = new SparseArray<>(4);
-    private boolean mDividerAllowedAbove;
-    private boolean mDividerAllowedBelow;
+	private boolean mDividerAllowedAbove;
+	private boolean mDividerAllowedBelow;
+	public boolean drawSideLine;
 
     PreferenceViewHolder(View itemView) {
         super(itemView);

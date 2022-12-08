@@ -23,4 +23,5 @@
     android:layout_height="match_parent"
     android:paddingTop="0dp"
     android:paddingBottom="0dp"
-    android:clipToPadding="false"/>
+    android:clipToPadding="false"
+	/>

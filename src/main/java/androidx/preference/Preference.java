@@ -24,7 +24,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.TypedArray;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.RectShape;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -32,11 +36,15 @@ import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.AbsSavedState;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.widget.CheckBox;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,13 +52,19 @@ import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
+import androidx.appcompat.app.GlobalOptions;
 import androidx.appcompat.content.res.AppCompatResources;
+import androidx.appcompat.widget.ViewUtils;
 import androidx.core.content.res.TypedArrayUtils;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.ViewParentCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+import androidx.recyclerview.widget.RecyclerView;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -95,8 +109,8 @@ public class Preference implements Comparable<Preference> {
     public static final int DEFAULT_ORDER = Integer.MAX_VALUE;
 
     private static final String CLIPBOARD_ID = "Preference";
-
-    private Context mContext;
+	
+	private Context mContext;
 
     @Nullable
     private PreferenceManager mPreferenceManager;
@@ -121,18 +135,27 @@ public class Preference implements Comparable<Preference> {
      */
     private boolean mHasId;
 
+    private OnGetViewListener mOnGetViewListener;
     private OnPreferenceChangeListener mOnChangeListener;
     private OnPreferenceClickListener mOnClickListener;
 
     private int mOrder = DEFAULT_ORDER;
     private int mViewId = 0;
-    private CharSequence mTitle;
-    private CharSequence mSummary;
+	
+	protected CharSequence mTitle;
+ 
+	protected CharSequence mSummary;
+ 
+	protected boolean inlineSummary;
+	
+	protected String mSuffix;
 
     /**
      * mIconResId is overridden by mIcon, if mIcon is specified.
      */
     private int mIconResId;
+    private boolean mIconMutate;
+    private int mIconTint;
     private Drawable mIcon;
     private String mKey;
     private Intent mIntent;
@@ -147,7 +170,13 @@ public class Preference implements Comparable<Preference> {
     private boolean mDependencyMet = true;
     private boolean mParentDependencyMet = true;
     private boolean mVisible = true;
-
+	
+	protected CharSequence mWikiText;
+	protected boolean bShowWikiInSummary;
+	protected boolean bHasGlobalCheck;
+	protected boolean bHasInnerDivider;
+	protected boolean bClickedOnLeftPart;
+	
     private boolean mAllowDividerAbove = true;
     private boolean mAllowDividerBelow = true;
     private boolean mHasSingleLineTitleAttr;
@@ -209,6 +238,10 @@ public class Preference implements Comparable<Preference> {
 
         mIconResId = TypedArrayUtils.getResourceId(a, R.styleable.Preference_icon,
                 R.styleable.Preference_android_icon, 0);
+        
+        mIconTint = TypedArrayUtils.getInt(a, R.styleable.Preference_android_tint, R.styleable.Preference_android_tint, 0);
+		
+        mIconMutate = TypedArrayUtils.getBoolean(a, R.styleable.Preference_android_clickable, R.styleable.Preference_android_clickable, false);
 
         mKey = TypedArrayUtils.getString(a, R.styleable.Preference_key,
                 R.styleable.Preference_android_key);
@@ -218,7 +251,11 @@ public class Preference implements Comparable<Preference> {
 
         mSummary = TypedArrayUtils.getText(a, R.styleable.Preference_summary,
                 R.styleable.Preference_android_summary);
-
+	
+		inlineSummary = TypedArrayUtils.getBoolean(a, R.styleable.Preference_inlineSummary,
+				R.styleable.Preference_inlineSummary
+				, false);
+		
         mOrder = TypedArrayUtils.getInt(a, R.styleable.Preference_order,
                 R.styleable.Preference_android_order, DEFAULT_ORDER);
 
@@ -242,13 +279,25 @@ public class Preference implements Comparable<Preference> {
 
         mDependencyKey = TypedArrayUtils.getString(a, R.styleable.Preference_dependency,
                 R.styleable.Preference_android_dependency);
-
+	
         mAllowDividerAbove = TypedArrayUtils.getBoolean(a, R.styleable.Preference_allowDividerAbove,
                 R.styleable.Preference_allowDividerAbove, mSelectable);
 
         mAllowDividerBelow = TypedArrayUtils.getBoolean(a, R.styleable.Preference_allowDividerBelow,
                 R.styleable.Preference_allowDividerBelow, mSelectable);
-
+	
+		bHasGlobalCheck = a.getBoolean(R.styleable.Preference_hasCheck, false);
+	
+		bHasInnerDivider = a.getBoolean(R.styleable.Preference_hasSep, false);
+	
+		mWikiText = TypedArrayUtils.getString(a,
+				R.styleable.Preference_wiki,
+				0);
+		
+		bShowWikiInSummary = TypedArrayUtils.getBoolean(a, R.styleable.Preference_wikiSummary,
+				R.styleable.Preference_wikiSummary,
+				false);
+		
         if (a.hasValue(R.styleable.Preference_defaultValue)) {
             mDefaultValue = onGetDefaultValue(a, R.styleable.Preference_defaultValue);
         } else if (a.hasValue(R.styleable.Preference_android_defaultValue)) {
@@ -485,8 +534,29 @@ public class Preference implements Comparable<Preference> {
     public final int getWidgetLayoutResource() {
         return mWidgetLayoutResId;
     }
-
-    /**
+	
+	public boolean getHasGlobalCheck() {
+		return bHasGlobalCheck;
+	}
+	
+	public boolean getHasInnerDivider() {
+		return bHasInnerDivider;
+	}
+	
+	public boolean getLeftPartClicked() {
+		return bClickedOnLeftPart;
+	}
+	
+	/**
+	 * Returns the text of the negative button to be shown on subsequent dialogs.
+	 *
+	 * @return The text of the negative button
+	 */
+	public CharSequence getWikiText() {
+		return mWikiText;
+	}
+	
+	/**
      * Binds the created View to the data for this preference.
      *
      * <p>This is a good place to grab references to custom Views in the layout and set
@@ -499,29 +569,76 @@ public class Preference implements Comparable<Preference> {
      *               returns.
      */
     public void onBindViewHolder(PreferenceViewHolder holder) {
-        View itemView = holder.itemView;
+        final View itemView = holder.itemView;
         Integer summaryTextColor = null;
+
+		boolean isRTL=itemView.getResources().getConfiguration().getLayoutDirection()==View.LAYOUT_DIRECTION_RTL;
+
+		float density = itemView.getResources().getDisplayMetrics().density;
+		int _20_ = (int) (6.6*density);
+		int _50_ = (int) (16.6*density);
+		int _5_ = (int) (1.6*density);
+		if(isRTL) itemView.setPadding(0,0,_20_,0);
+		else itemView.setPadding(_20_,0,0,0);
 
         itemView.setOnClickListener(mClickListener);
         itemView.setId(mViewId);
 
         final TextView summaryView = (TextView) holder.findViewById(android.R.id.summary);
         if (summaryView != null) {
-            final CharSequence summary = getSummary();
-            if (!TextUtils.isEmpty(summary)) {
-                summaryView.setText(summary);
+            CharSequence summary = getSummary();
+			//CMN.Log("onBindViewHolder::", bShowWikiInSummary, mWikiText, summary);
+            if ((!inlineSummary || bShowWikiInSummary) && !TextUtils.isEmpty(summary)) {
+            	if (inlineSummary) {
+					summary = mWikiText;
+				} else if(bShowWikiInSummary){
+            		summary = summary.toString()+mWikiText;
+				}
+				summaryView.setText(summary);
                 summaryView.setVisibility(View.VISIBLE);
-                summaryTextColor = summaryView.getCurrentTextColor();
             } else {
                 summaryView.setVisibility(View.GONE);
             }
+            if(GlobalOptions.isDark)
+				summaryView.setTextColor(Color.GRAY);
         }
 
-        final TextView titleView = (TextView) holder.findViewById(android.R.id.title);
-        if (titleView != null) {
-            final CharSequence title = getTitle();
+		if (mIconResId != 0 && mIcon == null) {
+			mIcon = AppCompatResources.getDrawable(mContext, mIconResId);
+			//mIcon.setColorFilter(0xff0000ff, PorterDuff.Mode.SRC_IN);
+			if(mIcon!=null) {
+				if(mIconMutate)
+					mIcon = mIcon.mutate().getConstantState().newDrawable();
+				if(mIconTint!=0) {
+					if (GlobalOptions.isDark&&mIconTint==0xff000000) {
+						mIconTint = 0xFF888888;
+					}
+					mIcon.setColorFilter(mIconTint, PorterDuff.Mode.SRC_IN);
+				}
+			}
+		}
+
+		if(mIcon!=null) mIcon.setBounds(0,0,_50_,_50_);
+
+		final TextView titleView = (TextView) holder.findViewById(android.R.id.title);
+		if (titleView != null) {
+			if (mIcon != null) {
+				if(isRTL){
+					titleView.setCompoundDrawables(null, null, mIcon, null);
+					itemView.setPadding(0,0,_5_,0);
+				} else {
+					titleView.setCompoundDrawables(mIcon, null, null, null);
+					itemView.setPadding(_5_,0,0,0);
+				}
+				if(mTitle!=null && mTitle.charAt(0)!=' ') mTitle=" "+mTitle;
+			}
+            CharSequence title = getTitle();
             if (!TextUtils.isEmpty(title)) {
-                titleView.setText(title);
+            	if (inlineSummary) {
+					title = title.toString() + mSummary;
+				}
+            	titleView.setText(title);
+            	
                 titleView.setVisibility(View.VISIBLE);
                 if (mHasSingleLineTitleAttr) {
                     titleView.setSingleLine(mSingleLineTitle);
@@ -534,49 +651,38 @@ public class Preference implements Comparable<Preference> {
             } else {
                 titleView.setVisibility(View.GONE);
             }
+			if(GlobalOptions.isDark)
+				titleView.setTextColor(Color.WHITE);
         }
 
-        final ImageView imageView = (ImageView) holder.findViewById(android.R.id.icon);
-        if (imageView != null) {
-            if (mIconResId != 0 || mIcon != null) {
-                if (mIcon == null) {
-                    mIcon = AppCompatResources.getDrawable(mContext, mIconResId);
-                }
-                if (mIcon != null) {
-                    imageView.setImageDrawable(mIcon);
-                }
-            }
-            if (mIcon != null) {
-                imageView.setVisibility(View.VISIBLE);
-            } else {
-                imageView.setVisibility(mIconSpaceReserved ? View.INVISIBLE : View.GONE);
-            }
-        }
+		//if(GlobalOptions.isDark && itemView.getBackground()!=null)
+		//	itemView.getBackground().setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN);
 
-        View imageFrame = holder.findViewById(R.id.icon_frame);
-        if (imageFrame == null) {
-            imageFrame = holder.findViewById(AndroidResources.ANDROID_R_ICON_FRAME);
+		boolean  allEnable = mShouldDisableView?isEnabled():true;
+        if (bHasGlobalCheck) {
+			View cb = itemView.findViewById(R.id.checkbox);
+			if (cb instanceof CheckBox) allEnable = ((CheckBox) cb).isChecked();
         }
-        if (imageFrame != null) {
-            if (mIcon != null) {
-                imageFrame.setVisibility(View.VISIBLE);
-            } else {
-                imageFrame.setVisibility(mIconSpaceReserved ? View.INVISIBLE : View.GONE);
-            }
-        }
-
-        if (mShouldDisableView) {
-            setEnabledStateOnViews(itemView, isEnabled());
-        } else {
-            setEnabledStateOnViews(itemView, true);
-        }
+		setEnabledStateOnViews(itemView, allEnable);
 
         final boolean selectable = isSelectable();
         itemView.setFocusable(selectable);
         itemView.setClickable(selectable);
-
+	
+		if (mOnGetViewListener != null) {
+			mOnGetViewListener.bindView(holder);
+		}
+	
+		PreferenceGroup p = getParent();
+		if (p != null) {
+			p.setBackground(itemView, this);
+		}
+	
         holder.setDividerAllowedAbove(mAllowDividerAbove);
         holder.setDividerAllowedBelow(mAllowDividerBelow);
+	
+		holder.drawSideLine = p!=null && p.drawSideLine
+			|| this instanceof PreferenceGroup && ((PreferenceGroup) this).drawSideLine;
 
         final boolean copyingEnabled = isCopyingEnabled();
 
@@ -590,8 +696,29 @@ public class Preference implements Comparable<Preference> {
         if (copyingEnabled && !selectable) {
             ViewCompat.setBackground(itemView, null);
         }
+	
+		if (holder.itemView instanceof LinearLayout) {
+			LinearLayout lv = ((LinearLayout) holder.itemView);
+			if(bHasInnerDivider ^ (lv.getShowDividers()!=0)) {
+				lv.setShowDividers(bHasInnerDivider?LinearLayout.SHOW_DIVIDER_MIDDLE
+						:LinearLayout.SHOW_DIVIDER_NONE);
+				if(bHasInnerDivider && lv.getDividerDrawable()==null) {
+					ShapeDrawable d = innerDividerRef==null?null:innerDividerRef.get();
+					if(d==null || lv.isInEditMode()) {
+						d = new ShapeDrawable(new RectShape());
+						innerDividerRef = new WeakReference<>(d);
+						d.setIntrinsicWidth((int) (1.25*GlobalOptions.density));
+						d.setColorFilter(0x7f888888, PorterDuff.Mode.SRC_IN);
+					}
+					lv.setDividerDrawable(d);
+					lv.setDividerPadding((int) (5*GlobalOptions.density));
+				}
+			}
+		}
     }
-
+	
+	WeakReference<ShapeDrawable> innerDividerRef;
+	
     /**
      * Makes sure the view (and any children) get the enabled state changed.
      */
@@ -735,6 +862,10 @@ public class Preference implements Comparable<Preference> {
         return mSummary;
     }
 
+    public CharSequence getRawSummary() {
+        return mSummary;
+    }
+
     /**
      * Sets the summary for this preference with a CharSequence.
      *
@@ -746,6 +877,9 @@ public class Preference implements Comparable<Preference> {
      * @see #setSummaryProvider(SummaryProvider)
      */
     public void setSummary(CharSequence summary) {
+    	if (mSuffix!=null) {
+			summary = summary+mSuffix;
+		}
         if (getSummaryProvider() != null) {
             throw new IllegalStateException("Preference already has a SummaryProvider set.");
         }
@@ -754,7 +888,6 @@ public class Preference implements Comparable<Preference> {
             notifyChanged();
         }
     }
-
     /**
      * Sets the summary for this preference with a resource ID.
      *
@@ -768,8 +901,16 @@ public class Preference implements Comparable<Preference> {
     public void setSummary(int summaryResId) {
         setSummary(mContext.getString(summaryResId));
     }
-
-    /**
+	
+	public void setWiki(CharSequence wiki, boolean showWikiInSummary) {
+		if (!TextUtils.equals(mWikiText, wiki)) {
+			mWikiText = wiki;
+			bShowWikiInSummary = showWikiInSummary;
+			notifyChanged();
+		}
+	}
+	
+	/**
      * Sets whether this preference is enabled. If disabled, it will not handle clicks.
      *
      * @param enabled Set true to enable it
@@ -1115,6 +1256,7 @@ public class Preference implements Comparable<Preference> {
      * @return {@code true} if the user value should be set as the preference value (and persisted)
      */
     public boolean callChangeListener(Object newValue) {
+    	//CMN.Log("callChangeListener", newValue);
         return mOnChangeListener == null || mOnChangeListener.onPreferenceChange(this, newValue);
     }
 
@@ -1127,6 +1269,11 @@ public class Preference implements Comparable<Preference> {
     public void setOnPreferenceChangeListener(
             OnPreferenceChangeListener onPreferenceChangeListener) {
         mOnChangeListener = onPreferenceChangeListener;
+    }
+
+    public void setmOnGetViewListener(
+            OnGetViewListener getViewListener) {
+		mOnGetViewListener = getViewListener;
     }
 
     /**
@@ -1163,6 +1310,25 @@ public class Preference implements Comparable<Preference> {
      */
     @RestrictTo(LIBRARY_GROUP_PREFIX)
     protected void performClick(View view) {
+		//CMN.Log("performClick::", CMN.id(this), getTitle(), mListener);
+		
+		if (bHasGlobalCheck) {
+			View cb = view.findViewById(R.id.checkbox);
+			if (cb instanceof CheckBox && !((CheckBox) cb).isChecked()) {
+				return;
+			}
+		}
+		
+		if (bHasInnerDivider) {
+			boolean left=false;
+			try {
+				left = ((RecyclerView)view.getParent()).mLastTouchX <= view.findViewById(android.R.id.widget_frame).getLeft();
+			} catch (Exception e) {
+				CMN.Log(e);
+			}
+			bClickedOnLeftPart = left;
+		}
+		
         performClick();
     }
 
@@ -1271,6 +1437,7 @@ public class Preference implements Comparable<Preference> {
      * Should be called when the data of this {@link Preference} has changed.
      */
     protected void notifyChanged() {
+    	//CMN.Log("notifyChanged::", CMN.id(this), getTitle(), mListener);
         if (mListener != null) {
             mListener.onPreferenceChange(this);
         }
@@ -2099,8 +2266,17 @@ public class Preference implements Comparable<Preference> {
     @CallSuper
     @Deprecated
     public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfoCompat info) {}
-
-    /**
+	
+	public View getView() {
+		return mOnGetViewListener.getView(this);
+	}
+	
+	public interface OnGetViewListener {
+		View getView(Preference preference);
+		void bindView(PreferenceViewHolder pvh);
+	}
+	
+	/**
      * Interface definition for a callback to be invoked when the value of this
      * {@link Preference} has been changed by the user and is about to be set and/or persisted.
      * This gives the client a chance to prevent setting and/or persisting the value.
@@ -2255,4 +2431,9 @@ public class Preference implements Comparable<Preference> {
             return true;
         }
     }
+	
+	public final void setDrawDividers(boolean ab, boolean bl) {
+		mAllowDividerAbove = ab;
+		mAllowDividerBelow = bl;
+	}
 }

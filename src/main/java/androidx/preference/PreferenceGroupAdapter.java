@@ -19,15 +19,19 @@ package androidx.preference;
 import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX;
 
 import android.content.res.TypedArray;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RestrictTo;
+import androidx.appcompat.app.GlobalOptions;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.DiffUtil;
@@ -35,6 +39,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * An adapter that connects a {@link RecyclerView} to the {@link Preference}s contained in
@@ -53,7 +58,7 @@ public class PreferenceGroupAdapter extends RecyclerView.Adapter<PreferenceViewH
      * The {@link PreferenceGroup} that we build a list of preferences from. This should
      * typically be the root {@link PreferenceScreen} managed by a {@link PreferenceFragmentCompat}.
      */
-    private PreferenceGroup mPreferenceGroup;
+    private final PreferenceGroup mPreferenceGroup;
 
     /**
      * Contains a sorted list of all {@link Preference}s in this adapter regardless of visibility.
@@ -394,8 +399,10 @@ public class PreferenceGroupAdapter extends RecyclerView.Adapter<PreferenceViewH
                     android.R.drawable.list_selector_background);
         }
         a.recycle();
-
-        final View view = inflater.inflate(descriptor.mLayoutResId, parent, false);
+        final View view = descriptor.mLayoutResId==R.layout.empty?
+				/*new View(parent.getContext())*/
+				descriptor.pref.getView()
+		: inflater.inflate(descriptor.mLayoutResId, parent, false);
         if (view.getBackground() == null) {
             ViewCompat.setBackground(view, background);
         }
@@ -408,14 +415,53 @@ public class PreferenceGroupAdapter extends RecyclerView.Adapter<PreferenceViewH
                 widgetFrame.setVisibility(View.GONE);
             }
         }
+		PreferenceViewHolder ret = new PreferenceViewHolder(view);
+        if (descriptor.bHasGlobalCheck) {
+        	if (view instanceof LinearLayout && ((LinearLayout) view).getOrientation()==LinearLayout.HORIZONTAL) {
+        		CheckBox preCheck = new CheckBox(parent.getContext());
+        		preCheck.setId(R.id.checkbox);
+				preCheck.setTag(ret);
+        		preCheck.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						boolean checked = ((CheckBox)v).isChecked();
+						PreferenceViewHolder holder = (PreferenceViewHolder) v.getTag();
+						if (holder!=null) {
+							final Preference preference = getItem(holder.getLayoutPosition());
+							preference.callChangeListener("use"+(checked?"":"_not"));
+							preference.notifyChanged();
+						}
+					}
+				});
+				((LinearLayout) view).addView(preCheck, 0);
+			}
+        	// else todo
+		}
 
-        return new PreferenceViewHolder(view);
+        return ret;
     }
 
     @Override
     public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
         final Preference preference = getItem(position);
-        preference.onBindViewHolder(holder);
+		if (preference.getHasGlobalCheck()) {
+			CheckBox preCheck = holder.itemView.findViewById(R.id.checkbox);
+			preCheck.setChecked(preference.callChangeListener("using"));
+			preference.onBindViewHolder(holder);
+			holder.itemView.setEnabled(true);
+			preCheck.setEnabled(true);
+		} else {
+			preference.onBindViewHolder(holder);
+		}
+		
+        int pad = (int)  (15* GlobalOptions.density);
+		//if (position==0) mPaddingLeft=0;
+		//holder.itemView.setPadding(mPaddingLeft+holder.itemView.getPaddingLeft(),0,mPaddingRight+holder.itemView.getPaddingRight(),0);
+		ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
+		if (lp != null) {
+			((ViewGroup.MarginLayoutParams) lp).leftMargin = pad;
+			((ViewGroup.MarginLayoutParams) lp).rightMargin = pad;
+		}
     }
 
     @Override
@@ -453,11 +499,17 @@ public class PreferenceGroupAdapter extends RecyclerView.Adapter<PreferenceViewH
         int mLayoutResId;
         int mWidgetLayoutResId;
         String mClassName;
+        boolean bHasGlobalCheck;
+		Preference pref;
 
         PreferenceResourceDescriptor(Preference preference) {
             mClassName = preference.getClass().getName();
             mLayoutResId = preference.getLayoutResource();
             mWidgetLayoutResId = preference.getWidgetLayoutResource();
+			bHasGlobalCheck = preference.getHasGlobalCheck();
+			if(mLayoutResId==R.layout.empty) {
+				pref = preference;
+			}
         }
 
         @Override
@@ -467,7 +519,10 @@ public class PreferenceGroupAdapter extends RecyclerView.Adapter<PreferenceViewH
             }
             final PreferenceResourceDescriptor other = (PreferenceResourceDescriptor) o;
             return mLayoutResId == other.mLayoutResId
+					//&& mLayoutResId!=R.layout.empty
+					&& pref==other.pref
                     && mWidgetLayoutResId == other.mWidgetLayoutResId
+                    && bHasGlobalCheck == other.bHasGlobalCheck
                     && TextUtils.equals(mClassName, other.mClassName);
         }
 

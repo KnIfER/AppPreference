@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -37,6 +38,7 @@ import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.RestrictTo;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.GlobalOptions;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 
@@ -64,6 +66,7 @@ public abstract class PreferenceDialogFragmentCompat extends DialogFragment impl
     private CharSequence mDialogTitle;
     private CharSequence mPositiveButtonText;
     private CharSequence mNegativeButtonText;
+    private CharSequence mWikiText;
     private CharSequence mDialogMessage;
     private @LayoutRes int mDialogLayoutRes;
 
@@ -91,6 +94,7 @@ public abstract class PreferenceDialogFragmentCompat extends DialogFragment impl
             mDialogTitle = mPreference.getDialogTitle();
             mPositiveButtonText = mPreference.getPositiveButtonText();
             mNegativeButtonText = mPreference.getNegativeButtonText();
+			mWikiText = mPreference.getWikiText();
             mDialogMessage = mPreference.getDialogMessage();
             mDialogLayoutRes = mPreference.getDialogLayoutResource();
 
@@ -142,7 +146,9 @@ public abstract class PreferenceDialogFragmentCompat extends DialogFragment impl
                 .setTitle(mDialogTitle)
                 .setIcon(mDialogIcon)
                 .setPositiveButton(mPositiveButtonText, this)
-                .setNegativeButton(mNegativeButtonText, this);
+                .setNegativeButton(mNegativeButtonText, this)
+                .setWikiText(mWikiText, null)
+				;
 
         View contentView = onCreateDialogView(context);
         if (contentView != null) {
@@ -151,6 +157,7 @@ public abstract class PreferenceDialogFragmentCompat extends DialogFragment impl
         } else {
             builder.setMessage(mDialogMessage);
         }
+        
 
         onPrepareDialogBuilder(builder);
 
@@ -159,11 +166,19 @@ public abstract class PreferenceDialogFragmentCompat extends DialogFragment impl
         if (needInputMethod()) {
             requestInputMethod(dialog);
         }
-
+	
+		// CMN.recurseLogCascade(dialog.getWindow().getDecorView());
+        
+        if(GlobalOptions.isDark){
+			Window win = dialog.getWindow();
+			if (win != null) {
+				win.getDecorView().setBackgroundColor(Color.BLACK);
+			}
+		}
         return dialog;
     }
 
-    /**
+	/**
      * Get the preference that requested this dialog. Available after {@link #onCreate(Bundle)} has
      * been called on the {@link PreferenceFragmentCompat} which launched this dialog.
      *

@@ -52,6 +52,7 @@ public final class PreferenceScreen extends PreferenceGroup {
     public PreferenceScreen(Context context, AttributeSet attrs) {
         super(context, attrs, TypedArrayUtils.getAttr(context, R.attr.preferenceScreenStyle,
                 android.R.attr.preferenceScreenStyle));
+		cardGroupView = false;
     }
 
     @Override

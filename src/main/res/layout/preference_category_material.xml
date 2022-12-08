@@ -25,10 +25,10 @@
     android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
     android:background="?android:attr/selectableItemBackground"
     android:baselineAligned="false"
-    android:layout_marginTop="16dp"
+    android:layout_marginTop="0dp"
     android:gravity="center_vertical">
 
-    <include layout="@layout/image_frame"/>
+<!--    <include layout="@layout/image_frame"/>-->
 
     <RelativeLayout
         android:layout_width="0dp"
@@ -43,7 +43,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="start"
             android:textAlignment="viewStart"
-            style="@style/PreferenceCategoryTitleTextStyle"/>
+            style="@style/PreferenceCategoryTitleTextStyle"
+			/>
 
         <TextView
             android:id="@android:id/summary"

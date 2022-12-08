@@ -21,6 +21,9 @@ import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Parcel;
@@ -28,10 +31,12 @@ import android.os.Parcelable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
+import androidx.appcompat.app.GlobalOptions;
 import androidx.collection.SimpleArrayMap;
 import androidx.core.content.res.TypedArrayUtils;
 import androidx.recyclerview.widget.RecyclerView;
@@ -58,7 +63,8 @@ public abstract class PreferenceGroup extends Preference {
     @SuppressWarnings("WeakerAccess") /* synthetic access */
     final SimpleArrayMap<String, Long> mIdRecycleCache = new SimpleArrayMap<>();
     private final Handler mHandler = new Handler();
-    /**
+	public boolean drawSideLine;
+	/**
      * The container for child {@link Preference}s. This is sorted based on the ordering, please
      * use {@link #addPreference(Preference)} instead of adding to this directly.
      */
@@ -77,8 +83,9 @@ public abstract class PreferenceGroup extends Preference {
             }
         }
     };
-
-    public PreferenceGroup(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+	protected boolean cardGroupView;
+	
+	public PreferenceGroup(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
 
         mPreferences = new ArrayList<>();
@@ -89,6 +96,14 @@ public abstract class PreferenceGroup extends Preference {
         mOrderingAsAdded =
                 TypedArrayUtils.getBoolean(a, R.styleable.PreferenceGroup_orderingFromXml,
                         R.styleable.PreferenceGroup_orderingFromXml, true);
+		
+		drawSideLine =
+                TypedArrayUtils.getBoolean(a, R.styleable.PreferenceGroup_drawSideLine,
+                        R.styleable.PreferenceGroup_drawSideLine, false);
+
+		cardGroupView =
+                TypedArrayUtils.getBoolean(a, R.styleable.PreferenceGroup_cardGroupView,
+                        R.styleable.PreferenceGroup_cardGroupView, !TextUtils.isEmpty(mTitle));
 
         if (a.hasValue(R.styleable.PreferenceGroup_initialExpandedChildrenCount)) {
             setInitialExpandedChildrenCount((TypedArrayUtils.getInt(
@@ -177,6 +192,10 @@ public abstract class PreferenceGroup extends Preference {
      */
     public int getPreferenceCount() {
         return mPreferences.size();
+    }
+	
+    public List<Preference> getPreferences() {
+        return mPreferences;
     }
 
     /**
@@ -525,8 +544,8 @@ public abstract class PreferenceGroup extends Preference {
         mInitialExpandedChildrenCount = groupState.mInitialExpandedChildrenCount;
         super.onRestoreInstanceState(groupState.getSuperState());
     }
-
-    /**
+	
+	/**
      * Interface for PreferenceGroup adapters to implement so that
      * {@link PreferenceFragmentCompat#scrollToPreference(String)} and
      * {@link PreferenceFragmentCompat#scrollToPreference(Preference)}
@@ -604,4 +623,63 @@ public abstract class PreferenceGroup extends Preference {
             dest.writeInt(mInitialExpandedChildrenCount);
         }
     }
+	
+	public void setBackground(View view, Preference preference) {
+		Drawable bg = view.getBackground();
+		boolean b1 = bg instanceof LayerDrawable;
+		Drawable bgg = b1?((LayerDrawable) bg).findDrawableByLayerId(android.R.id.background):null;
+		if (cardGroupView) {
+			boolean isFirst = false, isLast = false;
+			Preference probe;
+			for (int i = 0; i < mPreferences.size(); i++) {
+				probe = mPreferences.get(i);
+				if (probe == preference) {
+					isFirst = true;
+					break;
+				}
+				if (probe.isVisible()) {
+					break;
+				}
+			}
+			for (int i = mPreferences.size()-1; i >= 0; i--) {
+				probe = mPreferences.get(i);
+				if (probe == preference) {
+					isLast = true;
+					break;
+				}
+				if (probe.isVisible()) {
+					break;
+				}
+			}
+			int res = R.drawable.frame_middle;
+			if (isFirst && isLast) {
+				res = R.drawable.frame_topbot;
+				preference.setDrawDividers(false, false);
+			}
+			else if (isFirst) {
+				res = R.drawable.frame_top;
+				preference.setDrawDividers(false, true);
+			}
+			else if (isLast) {
+				res = R.drawable.frame_bot;
+				preference.setDrawDividers(true, false);
+			} else {
+				preference.setDrawDividers(true, true);
+			}
+			if(bgg == null) bgg = bg;
+			LayerDrawable ld = (LayerDrawable) view.getContext().getResources().getDrawable(res);
+			if (GlobalOptions.isDark) {
+				ld.setColorFilter(Build.VERSION.SDK_INT<=19?GlobalOptions.NEGATIVE_1:GlobalOptions.NEGATIVE);
+			}
+			LayerDrawable ldd = new LayerDrawable(new Drawable[]{ld, bgg});
+			ldd.setId(1, android.R.id.background);
+			view.setBackground(ldd);
+			view.setPadding((int) (10* GlobalOptions.density), 0 , 0, 0);
+		}
+		else if(b1) {
+			if(bgg!=null) {
+				view.setBackground(bgg);
+			}
+		}
+	}
 }

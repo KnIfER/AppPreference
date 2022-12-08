@@ -25,7 +25,7 @@
     android:paddingRight="?android:attr/scrollbarSize"
     android:background="?android:attr/selectableItemBackground">
 
-    <FrameLayout
+<!--    <FrameLayout
         android:id="@+id/icon_frame"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content">
@@ -34,8 +34,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:maxWidth="48dp"
-            app:maxHeight="48dp" />
-    </FrameLayout>
+            app:maxHeight="48dp"
+			android:visibility="gone"/>
+    </FrameLayout>-->
 
     <RelativeLayout
         android:layout_width="0dp"
