@@ -88,7 +88,7 @@ public class PreferenceManager {
     /**
      * The {@link PreferenceScreen} at the root of the preference hierarchy.
      */
-    private PreferenceScreen mPreferenceScreen;
+    public PreferenceScreen mPreferenceScreen;
 
     private PreferenceComparisonCallback mPreferenceComparisonCallback;
     private OnPreferenceTreeClickListener mOnPreferenceTreeClickListener;
