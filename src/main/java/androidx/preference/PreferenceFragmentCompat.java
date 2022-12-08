@@ -22,6 +22,8 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -37,6 +39,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RestrictTo;
 import androidx.annotation.XmlRes;
+import androidx.appcompat.app.GlobalOptions;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -110,14 +113,19 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
     private static final int MSG_BIND_PREFERENCES = 1;
 
     private final DividerDecoration mDividerDecoration = new DividerDecoration();
-    private PreferenceManager mPreferenceManager;
+    protected PreferenceManager mPreferenceManager;
     @SuppressWarnings("WeakerAccess") /* synthetic access */
-    RecyclerView mList;
+    protected RecyclerView mList;
     private boolean mHavePrefs;
+	protected boolean bPersist;
+	protected boolean bIsCreated;
+	protected boolean bRestoreListPos;
     private boolean mInitDone;
-    private int mLayoutResId = R.layout.preference_list_fragment;
+    protected int mLayoutResId = R.layout.preference_list_fragment;
     private Runnable mSelectPreferenceRunnable;
-
+	protected int clrAccent;
+	Paint sidePaint;
+	
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -135,10 +143,13 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
             mList.focusableViewAvailable(mList);
         }
     };
-
-    @Override
+	
+	@Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
+		//CMN.Log("onCreate::", CMN.id(this));
         super.onCreate(savedInstanceState);
+        if(bPersist && bIsCreated) return;
+		bIsCreated = true;
         final TypedValue tv = new TypedValue();
         getActivity().getTheme().resolveAttribute(R.attr.preferenceTheme, tv, true);
         int theme = tv.resourceId;
@@ -212,7 +223,11 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
         }
 
         mList = listView;
-
+	
+		if (bRestoreListPos) {
+			listView.scrollToPosition(getLastScrolledPos());
+		}
+		
         listView.addItemDecoration(mDividerDecoration);
         setDivider(divider);
         if (dividerHeight != -1) {
@@ -229,8 +244,15 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
 
         return view;
     }
-
-    /**
+	
+	protected int getLastScrolledPos() {
+		return 0;
+	}
+	
+	protected void setLastScrolledPos(int pos) {
+	}
+	
+	/**
      * Sets the {@link Drawable} that will be drawn between each item in the list.
      *
      * <p><strong>Note:</strong> If the drawable does not have an intrinsic height, you should also
@@ -289,18 +311,27 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
     @Override
     public void onStop() {
         super.onStop();
-        mPreferenceManager.setOnPreferenceTreeClickListener(null);
-        mPreferenceManager.setOnDisplayPreferenceDialogListener(null);
+		if (!bPersist) {
+			mPreferenceManager.setOnPreferenceTreeClickListener(null);
+			mPreferenceManager.setOnDisplayPreferenceDialogListener(null);
+		}
     }
 
     @Override
     public void onDestroyView() {
-        mHandler.removeCallbacks(mRequestFocus);
-        mHandler.removeMessages(MSG_BIND_PREFERENCES);
-        if (mHavePrefs) {
-            unbindPreferences();
+		mHandler.removeCallbacks(mRequestFocus);
+		mHandler.removeMessages(MSG_BIND_PREFERENCES);
+		if (bRestoreListPos) {
+			try {
+				setLastScrolledPos(((LinearLayoutManager)mList.getLayoutManager()).findFirstVisibleItemPosition());
+			} catch (Exception ignored) { }
+		}
+        if (!bPersist) {
+			if (mHavePrefs) {
+				unbindPreferences();
+			}
+			mList = null;
         }
-        mList = null;
         super.onDestroyView();
     }
 
@@ -479,7 +510,7 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
     @SuppressWarnings("WeakerAccess") /* synthetic access */
     void bindPreferences() {
         final PreferenceScreen preferenceScreen = getPreferenceScreen();
-        if (preferenceScreen != null) {
+        if (preferenceScreen != null && getListView().getAdapter()==null) { // todo check
             getListView().setAdapter(onCreateAdapter(preferenceScreen));
             preferenceScreen.onAttached();
         }
@@ -530,19 +561,18 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
             Bundle savedInstanceState) {
         // If device detected is Auto, use Auto's custom layout that contains a custom ViewGroup
         // wrapping a RecyclerView
-        if (getContext().getPackageManager().hasSystemFeature(PackageManager
-                .FEATURE_AUTOMOTIVE)) {
-            RecyclerView recyclerView = parent.findViewById(R.id.recycler_view);
-            if (recyclerView != null) {
-                return recyclerView;
-            }
+		RecyclerView recyclerView=null;
+        if (mLayoutResId!=R.layout.preference_list_fragment) {
+			recyclerView = parent.findViewById(R.id.recycler_view);
         }
-        RecyclerView recyclerView = (RecyclerView) inflater
-                .inflate(R.layout.preference_recyclerview, parent, false);
+		if (recyclerView == null) {
+			recyclerView = (RecyclerView) inflater
+					.inflate(R.layout.preference_recyclerview, parent, false);
+		}
 
         recyclerView.setLayoutManager(onCreateLayoutManager());
-        recyclerView.setAccessibilityDelegateCompat(
-                new PreferenceRecyclerViewAccessibilityDelegate(recyclerView));
+//        recyclerView.setAccessibilityDelegateCompat(
+//                new PreferenceRecyclerViewAccessibilityDelegate(recyclerView));
 
         return recyclerView;
     }
@@ -597,7 +627,9 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
         }
 
         final DialogFragment f;
-        if (preference instanceof EditTextPreference) {
+        if (preference instanceof DialogShowablePreference) {
+            f = ((DialogShowablePreference)preference).newInstance();
+        }else if (preference instanceof EditTextPreference) {
             f = EditTextPreferenceDialogFragmentCompat.newInstance(preference.getKey());
         } else if (preference instanceof ListPreference) {
             f = ListPreferenceDialogFragmentCompat.newInstance(preference.getKey());
@@ -794,14 +826,36 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
             }
             final int childCount = parent.getChildCount();
             final int width = parent.getWidth();
-            for (int childViewIndex = 0; childViewIndex < childCount; childViewIndex++) {
-                final View view = parent.getChildAt(childViewIndex);
-                if (shouldDrawDividerBelow(view, parent)) {
-                    int top = (int) view.getY() + view.getHeight();
-                    mDivider.setBounds(0, top, width, top + mDividerHeight);
-                    mDivider.draw(c);
-                }
+			int mPaddingLeft = (int)  (15* GlobalOptions.density);
+			int mPaddingRight = (int) (15* GlobalOptions.density);
+			int sideSt=-1,sideEd=-1;
+            for (int idx = 0; idx < childCount; idx++) {
+                final View view = parent.getChildAt(idx);
+				PreferenceViewHolder vh = getViewHolder(view, parent);
+				if (vh!=null) {
+					if (shouldDrawDividerBelow(view, parent)) {
+						int top = (int) view.getY() + view.getHeight();
+					    //if (childViewIndex==0) mPaddingLeft=0;
+						mDivider.setBounds(mPaddingLeft, top, width-mPaddingRight, top + mDividerHeight);
+						mDivider.draw(c);
+					}
+					if (vh.drawSideLine) {
+						if (sideSt==-1) {
+							sideSt = (int) view.getY() + mPaddingLeft;
+						}
+						sideEd = (int) view.getY() + view.getHeight();
+					}
+				}
             }
+			if (sideSt!=sideEd) {
+				if (sidePaint==null) {
+					sidePaint = new Paint();
+				}
+				sidePaint.setColor(clrAccent);
+				c.drawRect(mPaddingLeft-mDividerHeight*3-mPaddingLeft/4, sideSt, mPaddingLeft-mPaddingLeft/4, sideEd - mPaddingLeft, sidePaint);
+				//mDivider.setBounds(mPaddingLeft-mDividerHeight*4-mPaddingLeft/4, sideSt, mPaddingLeft-mPaddingLeft/4, sideEd - mPaddingLeft);
+				//mDivider.draw(c);
+			}
         }
 
         @Override
@@ -812,6 +866,11 @@ public abstract class PreferenceFragmentCompat extends Fragment implements
             }
         }
 
+        private PreferenceViewHolder getViewHolder(View view, RecyclerView parent) {
+			final RecyclerView.ViewHolder holder = parent.getChildViewHolder(view);
+			return holder instanceof PreferenceViewHolder? ((PreferenceViewHolder) holder) : null;
+		}
+		
         private boolean shouldDrawDividerBelow(View view, RecyclerView parent) {
             final RecyclerView.ViewHolder holder = parent.getChildViewHolder(view);
             final boolean dividerAllowedBelow = holder instanceof PreferenceViewHolder
