@@ -4,7 +4,7 @@ apply plugin: 'com.android.library'
 android {
 
     defaultConfig {
-        compileSdkVersion ver_compileSdkVersion as int
+        compileSdkVersion ver_compileSdkVersion
         targetSdkVersion ver_aimsdk
         minSdkVersion ver_minsdk
         vectorDrawables.useSupportLibrary = true
@@ -17,6 +17,7 @@ android {
         debug {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+            versionNameSuffix '-debug'
         }
         release {
             minifyEnabled false
@@ -24,6 +25,9 @@ android {
         }
     }
 
+    lintOptions {
+        abortOnError false
+    }
 
 }
 
@@ -35,9 +39,12 @@ dependencies {
         implementation  project(':AxtAppCompat')
     }
     api libs_anno
-    api libs_core
+    api project(':AxtCore')
     api libs_collection
-    api libs_fragment
-    api libs_recycler
-
+    api (libs_fragment){
+        exclude module:"core"
+        exclude module: "viewpager"
+    }
+    //api libs_recycler
+    api project(':AwtRecyclerView')
 }
