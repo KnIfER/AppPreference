@@ -217,7 +217,7 @@ public abstract class TwoStatePreference extends Preference {
      */
     @RestrictTo(LIBRARY)
     protected void syncSummaryView(View view) {
-        if (!(view instanceof TextView)) {
+        if (!(view instanceof TextView) || mSummaryOn==null && mSummaryOff==null) {
             return;
         }
         TextView summaryView = (TextView) view;
