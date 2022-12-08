@@ -1,50 +1,31 @@
-apply plugin: 'com.android.library'
-
-
-android {
-
-    defaultConfig {
-        compileSdkVersion ver_compileSdkVersion
-        targetSdkVersion ver_aimsdk
-        minSdkVersion ver_minsdk
-        vectorDrawables.useSupportLibrary = true
-
+buildscript {
+    repositories {
+        mavenLocal()
+        google()
+        jcenter()
+        maven { url 'https://jitpack.io' }
     }
-
-
-
-    buildTypes {
-        debug {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-            versionNameSuffix '-debug'
-        }
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
-        }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.4'
     }
-
-    lintOptions {
-        abortOnError false
-    }
-
 }
 
-
-dependencies {
-    if(use_compat_official=='1'){
-        api (libs_compat)
-    }else{
-        implementation  project(':AxtAppCompat')
-    }
-    api libs_anno
-    api project(':AxtCore')
-    api libs_collection
-    api (libs_fragment){
-        exclude module:"core"
-        exclude module: "viewpager"
-    }
-    //api libs_recycler
-    api project(':AwtRecyclerView')
+ext{
+    //compileSdkVersion = 28
+    //minSdkVersion = 19
+    //targetSdkVersion = 28
 }
+
+allprojects {
+    repositories {
+        mavenLocal()
+        google()
+        jcenter()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+//
+//task clean(type: Delete) {
+//    delete rootProject.buildDir
+//}

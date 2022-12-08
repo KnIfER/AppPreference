@@ -1,0 +1,59 @@
+apply plugin: 'com.android.library'
+
+
+android {
+
+    defaultConfig {
+        compileSdkVersion ver_compileSdkVersion
+        targetSdkVersion ver_aimsdk
+        minSdkVersion ver_minsdk
+        vectorDrawables.useSupportLibrary = true
+
+    }
+
+
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+}
+
+
+dependencies {
+    api libs_compat
+    api (libs_anno){
+        exclude module: "core"
+    }
+    api (libs_recycler){
+        exclude module: "core"
+    }
+//    api project(':AwtRecyclerView')
+}
+
+apply plugin: 'maven-publish'
+afterEvaluate {
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from components.all
+                groupId "org.appxmod.android"
+                artifactId "Preference"
+                version "1.0.0"
+            }
+        }
+    }
+}
+build.finalizedBy publishToMavenLocal

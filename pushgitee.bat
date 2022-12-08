@@ -1,2 +1,1 @@
-git push origin --repo https://gitee.com/knziha/plaindict.git
-pause
+git push origin --repo https://gitee.com/appxmod/AppPreference.git
