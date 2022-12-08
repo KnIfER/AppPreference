@@ -18,12 +18,16 @@ package androidx.preference;
 
 import static androidx.annotation.RestrictTo.Scope.LIBRARY;
 
+import android.graphics.Color;
 import android.os.Bundle;
+import android.text.method.DigitsKeyListener;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RestrictTo;
+import androidx.appcompat.app.GlobalOptions;
 
 public class EditTextPreferenceDialogFragmentCompat extends PreferenceDialogFragmentCompat {
 
@@ -63,17 +67,29 @@ public class EditTextPreferenceDialogFragmentCompat extends PreferenceDialogFrag
         super.onBindDialogView(view);
 
         mEditText = view.findViewById(android.R.id.edit);
+	
+		if(GlobalOptions.isDark)
+			mEditText.setTextColor(Color.WHITE);
 
         if (mEditText == null) {
             throw new IllegalStateException("Dialog view must contain an EditText with id" +
                     " @android:id/edit");
         }
-
+	
+		if (getEditTextPreference().getIsNumberEdit()) {
+			mEditText.setInputType(EditorInfo.TYPE_CLASS_NUMBER);
+			mEditText.setKeyListener(DigitsKeyListener.getInstance("-0123456789."));
+		}
+		
         mEditText.requestFocus();
         mEditText.setText(mText);
-        // Place cursor at the end
-        mEditText.setSelection(mEditText.getText().length());
-        if (getEditTextPreference().getOnBindEditTextListener() != null) {
+		if (getEditTextPreference().getAutoSelectAll()) {
+			mEditText.setSelection(0, mEditText.getText().length());
+		} else {
+			// Place cursor at the end
+			mEditText.setSelection(mEditText.getText().length());
+		}
+		if (getEditTextPreference().getOnBindEditTextListener() != null) {
             getEditTextPreference().getOnBindEditTextListener().onBindEditText(mEditText);
         }
     }

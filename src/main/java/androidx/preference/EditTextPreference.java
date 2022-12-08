@@ -34,7 +34,9 @@ import androidx.core.content.res.TypedArrayUtils;
  * <p>This preference saves a string value.
  */
 public class EditTextPreference extends DialogPreference {
-    private String mText;
+	protected boolean bAutoSelectAll;
+	protected boolean bIsNumberEdit;
+	protected String mText;
 
     @Nullable
     private OnBindEditTextListener mOnBindEditTextListener;
@@ -50,6 +52,8 @@ public class EditTextPreference extends DialogPreference {
                 R.styleable.EditTextPreference_useSimpleSummaryProvider, false)) {
             setSummaryProvider(SimpleSummaryProvider.getInstance());
         }
+	
+		bAutoSelectAll = a.getBoolean(R.styleable.EditTextPreference_autoSelectAll, true);
 
         a.recycle();
     }
@@ -76,6 +80,7 @@ public class EditTextPreference extends DialogPreference {
         final boolean wasBlocking = shouldDisableDependents();
 
         mText = text;
+		setSummary(mText);
 
         persistString(text);
 
@@ -103,7 +108,7 @@ public class EditTextPreference extends DialogPreference {
 
     @Override
     protected void onSetInitialValue(Object defaultValue) {
-        setText(getPersistedString((String) defaultValue));
+        setText(getPersistedString(String.valueOf(defaultValue)));
     }
 
     @Override
@@ -161,8 +166,16 @@ public class EditTextPreference extends DialogPreference {
     @Nullable OnBindEditTextListener getOnBindEditTextListener() {
         return mOnBindEditTextListener;
     }
-
-    /**
+	
+	public boolean getAutoSelectAll() {
+		return bAutoSelectAll;
+	}
+	
+	public boolean getIsNumberEdit() {
+		return bIsNumberEdit;
+	}
+	
+	/**
      * Interface definition for a callback to be invoked when the corresponding dialog view for
      * this preference is bound. This allows you to customize the {@link EditText} displayed
      * in the dialog, such as setting a max length or a specific input type.
