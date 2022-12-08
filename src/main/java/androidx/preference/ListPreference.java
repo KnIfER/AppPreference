@@ -43,7 +43,9 @@ public class ListPreference extends DialogPreference {
     private CharSequence[] mEntryValues;
     private String mValue;
     private String mSummary;
+    private String mPrefiex;
     private boolean mValueSet;
+	private boolean bAutoSummary;
 
     public ListPreference(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
@@ -53,9 +55,13 @@ public class ListPreference extends DialogPreference {
 
         mEntries = TypedArrayUtils.getTextArray(a, R.styleable.ListPreference_entries,
                 R.styleable.ListPreference_android_entries);
+		
+		if(mEntries==null) mEntries=new CharSequence[0];
 
         mEntryValues = TypedArrayUtils.getTextArray(a, R.styleable.ListPreference_entryValues,
                 R.styleable.ListPreference_android_entryValues);
+	
+		bAutoSummary = a.getBoolean(R.styleable.ListPreference_autoSummary, true);
 
         if (TypedArrayUtils.getBoolean(a, R.styleable.ListPreference_useSimpleSummaryProvider,
                 R.styleable.ListPreference_useSimpleSummaryProvider, false)) {
@@ -70,6 +76,10 @@ public class ListPreference extends DialogPreference {
 
         mSummary = TypedArrayUtils.getString(a, R.styleable.Preference_summary,
                 R.styleable.Preference_android_summary);
+        
+        if (!TextUtils.isEmpty(mSummary)) {
+        	mPrefiex = mSummary;
+		}
 
         a.recycle();
     }
@@ -145,6 +155,10 @@ public class ListPreference extends DialogPreference {
         return mEntryValues;
     }
 
+    public boolean getAutoSummary() {
+        return bAutoSummary;
+    }
+
     @Override
     public void setSummary(CharSequence summary) {
         super.setSummary(summary);
@@ -191,6 +205,15 @@ public class ListPreference extends DialogPreference {
             if (changed) {
                 notifyChanged();
             }
+			if(bAutoSummary)
+			{
+				int index = findIndexOfValue(value);
+				CharSequence summary = index<0 || index>=mEntries.length?"error::"+value:mEntries[index];
+				if (mPrefiex!=null) {
+					summary = mPrefiex+summary;
+				}
+				setSummary(summary);
+			}
         }
     }
 
@@ -210,7 +233,8 @@ public class ListPreference extends DialogPreference {
      */
     public CharSequence getEntry() {
         int index = getValueIndex();
-        return index >= 0 && mEntries != null ? mEntries[index] : null;
+        //return index >= 0 && mEntries != null ? mEntries[index] : null;
+		return index >= 0 && mEntries != null && index<mEntries.length ? mEntries[index] : null;
     }
 
     /**
@@ -227,6 +251,15 @@ public class ListPreference extends DialogPreference {
                 }
             }
         }
+		if (value != null && mEntryValues == null) {
+			try {
+				int idx=Integer.parseInt(value);
+				if(idx>=0&idx<mEntries.length) {
+					return idx;
+				}
+			} catch (NumberFormatException ignored) { }
+			return 0;
+		}
         return -1;
     }
 

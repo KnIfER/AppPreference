@@ -49,7 +49,7 @@ public class ListPreferenceDialogFragmentCompat extends PreferenceDialogFragment
         if (savedInstanceState == null) {
             final ListPreference preference = getListPreference();
 
-            if (preference.getEntries() == null || preference.getEntryValues() == null) {
+            if (preference.getEntries() == null/* || preference.getEntryValues() == null*/) {
                 throw new IllegalStateException(
                         "ListPreference requires an entries array and an entryValues array.");
             }
@@ -102,7 +102,7 @@ public class ListPreferenceDialogFragmentCompat extends PreferenceDialogFragment
     @Override
     public void onDialogClosed(boolean positiveResult) {
         if (positiveResult && mClickedDialogEntryIndex >= 0) {
-            String value = mEntryValues[mClickedDialogEntryIndex].toString();
+			String value = mEntryValues==null?Integer.toString(mClickedDialogEntryIndex):mEntryValues[mClickedDialogEntryIndex].toString();
             final ListPreference preference = getListPreference();
             if (preference.callChangeListener(value)) {
                 preference.setValue(value);
