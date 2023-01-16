@@ -48,7 +48,7 @@ afterEvaluate {
     publishing {
         publications {
             maven(MavenPublication) {
-                from components.all
+                from components.release
                 groupId "org.appxmod.android"
                 artifactId "Preference"
                 version "1.0.0"
