@@ -1,0 +1,22 @@
+.gradle
+.idea
+.iml
+new_repo
+captures
+AxtAppCompat/build/
+**/build/
+ODPlayer/debug/
+ODPlayer/src/main/assets
+ODPlayer/src/main/jniLibs/arm64-v8a/*.so
+ODPlayer/src/main/jniLibs/armeabi-v7a/*.so
+
+#git remote add origin https://github.com/KnIfER/AppPreference.git
+#git push -u origin +master
+
+#git rm filepicker/build/ -r -f
+#git push origin HEAD --force
+#git ls-files
+#git rm FILE --cached
+#./gradlew ODPlayer��dependencies
+
+#git checkout -b dev origin/dev
